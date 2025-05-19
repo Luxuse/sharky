@@ -1,22 +1,77 @@
-alpha
+Documentation Sharky Compressor/Decompressor
+Introduction
 
+Sharky est un outil en ligne de commande développé en Rust pour compresser et décompresser des fichiers ou des répertoires. Cette version utilise un pipeline de compression hybride performant basé sur Deflate et Zstd, conçu pour un bon équilibre entre taux de compression et vitesse, tout en gérant efficacement la mémoire grâce au streaming.
+Caractéristiques
 
+    Compression Hybride Efficace : Combine Tar pour l'archivage avec une double compression séquentielle utilisant Deflate (niveau 9) puis Zstd (niveau configurable).
+    Streaming : Permet de traiter de très grands fichiers ou répertoires en traitant les données par blocs, réduisant ainsi l'utilisation de la RAM.
+    Équilibre Vitesse/Ratio : Le pipeline Deflate + Zstd offre généralement un excellent compromis entre la vitesse de compression/décompression et le taux de réduction de données, ajustable via le niveau de Zstd.
+    Indication de Progression : Affiche une barre de progression ou un indicateur visuel pendant les opérations.
 
-Usage: sharpy.exe [OPTIONS] <INPUT> <OUTPUT>
+Construction du Projet
 
-For more information, try '--help'.
-PS Z:\codeetproj\sharpy> .\sharpy.exe -c -i target -o test.stel
-Compression de '"target"' vers '"test.stel"'...
-- Archive tar créée.
-- Compression LZ4 terminée.
-- Compression XZ terminée.
-- Fichier de sortie sauvegardé.
-Opération réussie !
-PS Z:\codeetproj\sharpy> .\sharpy.exe -d -i test.stel -o Z:\codeetproj\sharpy
-Décompression de '"test.stel"' vers '"Z:\\codeetproj\\sharpy"'...
-- Fichier d'entrée lu.
-- Décompression XZ terminée.
-- Décompression LZ4 terminée.
-- Archive tar extraite.
-Opération réussie !
-PS Z:\codeetproj\sharpy>
+Pour construire Sharky, assurez-vous d'avoir Rust et Cargo installés.
+
+    Naviguez dans le répertoire racine du projet Sharky.
+
+    Exécutez la commande de construction en mode release pour des performances optimales :
+    Bash
+
+    cargo build --release
+
+Le binaire sharky sera disponible dans target/release/.
+Utilisation
+
+Utilisez le binaire sharky depuis la ligne de commande :
+
+./target/release/sharky [OPTIONS] --input <INPUT> --output <OUTPUT>
+
+Arguments :
+
+    -c, --compress : Active le mode compression.
+    -d, --decompress : Active le mode décompression. (Incompatible avec -c)
+    -i, --input <INPUT> : Spécifie le chemin vers le fichier ou le répertoire à traiter.
+    -o, --output <OUTPUT> : Spécifie le chemin de sortie.
+
+Option de Niveau de Compression :
+
+    -l <zstd-level>, --zstd-level <zstd-level> : Spécifie le niveau de compression pour Zstd.
+        Accepté : Entier entre 0 et 22.
+        Défaut : 7 (bon équilibre).
+        Utilisez des niveaux plus élevés (ex: 15, 19, 22) pour un meilleur taux de compression (au détriment de la vitesse de compression).
+        Le niveau de Deflate est fixé à 9 dans cette version et ne peut pas être modifié via la ligne de commande.
+
+Méthode de Compression : Tar + Deflate (N9) + Zstd (Niveau Var.)
+
+Lors de la compression (--compress), Sharky utilise le pipeline séquentiel suivant :
+
+    L'entrée est archivée par Tar en un flux.
+    Le flux Tar est compressé par Deflate au niveau 9.
+    Le flux compressé par Deflate est ensuite compressé une seconde fois par Zstd au niveau spécifié par --zstd-level (-l).
+    Le résultat final est écrit dans le fichier de sortie.
+
+Lors de la décompression (--decompress), l'opération inverse est effectuée :
+
+    Le fichier compressé est lu.
+    Le flux est décompressé par Zstd.
+    Le flux est décompressé par Deflate.
+    Le flux Tar original est extrait vers le répertoire de destination.
+
+Cette méthode hybride vise à combiner la force de compression de Deflate (en tant que première passe) avec la performance et la bonne compression de Zstd (en tant que seconde passe principale). Le niveau de Zstd vous permet d'ajuster finement l'équilibre vitesse/ratio global.
+Exemples d'utilisation
+
+Compresser un répertoire data en data.stel avec le niveau Zstd par défaut (7) :
+Bash
+
+./target/release/sharky -c -i data -o data.stel
+
+Compresser un fichier doc.txt en doc.txt.stel avec le niveau Zstd maximum (22) pour meilleure compression :
+Bash
+
+./target/release/sharky -c -i doc.txt -o doc.txt.stel -l 22
+
+Décompresser l'archive archive.stel vers le répertoire restored_data :
+Bash
+
+./target/release/sharky -d -i archive.stel -o restored_data
