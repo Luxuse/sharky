@@ -1,0 +1,16 @@
+[package]
+name = "sharky"
+version = "0.1.0"
+edition = "2021" # J'ai mis 2021, car 2024 n'est pas encore officiel, mais 2021 est la plus courante après 2018. Si vous utilisez une version très récente de Rust, 2024 pourrait fonctionner.
+
+[dependencies]
+clap = { version = "4.5.38", features = ["derive"] }
+tar = "0.4"
+xz2 = "0.1"
+lz4_flex = "0.11.3" # La seule dépendance LZ4
+indicatif = "0.17" # Ajouté pour la barre de progression
+walkdir = "2.5" # Ajouté pour parcourir les dossiers et compter les fichiers
+image = "0.25.6"
+mozjpeg = "0.10.0"
+symphonia = { version = "0.5.0", features = ["all"] }
+claxon = "0.4.3" 

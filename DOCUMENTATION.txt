@@ -1,0 +1,22 @@
+alpha
+
+
+
+Usage: sharpy.exe [OPTIONS] <INPUT> <OUTPUT>
+
+For more information, try '--help'.
+PS Z:\codeetproj\sharpy> .\sharpy.exe -c -i target -o test.stel
+Compression de '"target"' vers '"test.stel"'...
+- Archive tar créée.
+- Compression LZ4 terminée.
+- Compression XZ terminée.
+- Fichier de sortie sauvegardé.
+Opération réussie !
+PS Z:\codeetproj\sharpy> .\sharpy.exe -d -i test.stel -o Z:\codeetproj\sharpy
+Décompression de '"test.stel"' vers '"Z:\\codeetproj\\sharpy"'...
+- Fichier d'entrée lu.
+- Décompression XZ terminée.
+- Décompression LZ4 terminée.
+- Archive tar extraite.
+Opération réussie !
+PS Z:\codeetproj\sharpy>
