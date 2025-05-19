@@ -1,5 +1,6 @@
 
-![icons8-shark-100](https://github.com/user-attachments/assets/117735a3-ab9d-4908-950b-e8edd0387b33)
+![MegalodonSU](https://github.com/user-attachments/assets/91815c28-c27b-4771-9cfe-d7a50e653ec7)
+
 # Sharky Compressor
 
 **Sharky** est un outil de compression/décompression en ligne de commande écrit en Rust. Il offre un pipeline hybride moderne et performant, optimisé pour un équilibre idéal entre vitesse et taux de compression.
