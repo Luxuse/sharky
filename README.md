@@ -1,5 +1,6 @@
 
-![MegalodonSU](https://github.com/user-attachments/assets/91815c28-c27b-4771-9cfe-d7a50e653ec7)
+![MegalodonSU](https://github.com/user-attachments/assets/924cacb4-1d32-4720-8820-ae93659f3b28)
+
 
 # Sharky Compressor
 
