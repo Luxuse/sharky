@@ -16,7 +16,7 @@ xz2 = "0.1.7" # Keep xz2 as requested (single-threaded XZ)
 flate2 = "1.0" # <--- REMOVED if not used
 bzip2 = "0.5.2"
 zip = "3.0.0"
-
+unrar= "0.5.8" # Example, replace with an actual crate if found
 
 [profile.release]
 # Optimisations pour un meilleur usage CPU

@@ -2,30 +2,22 @@ use std::{
     fs::{self, File},
     io::{self, BufReader, BufWriter, Read, Write},
     path::PathBuf,
-    time::{Duration, Instant}, // Added back Duration
+    time::{Duration, Instant},
 };
 
 use clap::{CommandFactory, Parser};
 use indicatif::{ProgressBar, ProgressStyle};
 use walkdir::WalkDir;
 
-// Compression/decompression libs
-// Ensure these are present and uncommented in your Cargo.toml:
-// zip = "3.0.0"
-// flate2 = "1.0"
-// bzip2 = "0.5.2"
-// xz2 = "0.1.7"
-// tar = "0.4"
-// zstd = "0.13.3"
-
-use bzip2::read::BzDecoder; // Used for .tar.bz2
-use flate2::read::GzDecoder; // Used for .tar.gz
+use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
 use tar::{Archive, Builder};
 use xz2::read::XzDecoder;
 use xz2::write::XzEncoder;
-use zip::ZipArchive; // Used for .zip files
+use zip::ZipArchive;
 use zstd::stream::read::Decoder as ZstdDecoder;
 use zstd::stream::write::Encoder as ZstdEncoder;
+use unrar::Archive as UnrarArchive; // Import the UnrarArchive struct
 
 /// Outil de compression/décompression : tar → XZ → Zstd
 #[derive(Parser, Debug)]
@@ -135,29 +127,24 @@ fn decompress_path(args: &Args) -> io::Result<()> {
 
     match ext {
         "zip" => decompress_zip(&args.input, &args.output, args.buffer_size),
-        // Handles generic .tar files. The `decompress_tar_plain` function doesn't need buffer_size as a param.
+        "rar" => decompress_rar(&args.input, &args.output),
         "tar" => decompress_tar_plain(File::open(&args.input)?, &args.output),
-        // Handles .tar.gz or .tgz
         "gz" | "tgz" if input_path_str.ends_with(".tar.gz") || ext == "tgz" => {
             let f = File::open(&args.input)?;
             let gz = GzDecoder::new(f);
             decompress_tar_plain(gz, &args.output)
         }
-        // Handles .tar.bz2
         "bz2" if input_path_str.ends_with(".tar.bz2") => {
             let f = File::open(&args.input)?;
             let bz = BzDecoder::new(f);
             decompress_tar_plain(bz, &args.output)
         }
-        // Default to XZ + Zstd if no other format matches the extension
         _ => {
-            // First pass: Count entries for progress bar
             let infile_count = BufReader::with_capacity(args.buffer_size, File::open(&args.input)?);
             let zstd_count = ZstdDecoder::new(infile_count)?;
             let xz_count = XzDecoder::new(zstd_count);
             let mut archive_count = Archive::new(xz_count);
 
-            // `entries()` consumes the archive, so we must recreate the stream for the second pass
             let entry_count = archive_count.entries()?.count();
             let pb = ProgressBar::new(entry_count as u64);
             pb.set_style(
@@ -166,14 +153,12 @@ fn decompress_path(args: &Args) -> io::Result<()> {
                     .progress_chars("#>-"),
             );
 
-            // Second pass: Actual decompression
-            // Re-open the file and re-create the decompression chain
             let infile_decompress = BufReader::with_capacity(args.buffer_size, File::open(&args.input)?);
             let zstd_decompress = ZstdDecoder::new(infile_decompress)?;
             let xz_decompress = XzDecoder::new(zstd_decompress);
             let mut archive_decompress = Archive::new(xz_decompress);
 
-            for file in archive_decompress.entries()? { // Iterate using the new archive instance
+            for file in archive_decompress.entries()? {
                 let mut file = file?;
                 let path = file.path()?.to_path_buf();
                 let outpath = args.output.join(path);
@@ -222,14 +207,70 @@ fn decompress_zip(input: &PathBuf, output: &PathBuf, _bufsize: usize) -> io::Res
     Ok(())
 }
 
-// Removed 'mut' from 'reader' as it's not necessary here.
-fn decompress_tar_plain<R: Read>(reader: R, output: &PathBuf) -> io::Result<()> {
-    let pb = ProgressBar::new_spinner(); // Use spinner for indeterminate progress if we can't count entries
+fn decompress_rar(input: &PathBuf, output: &PathBuf) -> io::Result<()> {
+    println!("Attempting RAR decompression (requires external unrar library)...");
+
+    let mut archive = UnrarArchive::new(input.as_path())
+        .open_for_processing()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to open RAR archive: {}", e)))?;
+
+    let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}")
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
     );
-    pb.enable_steady_tick(Duration::from_millis(100)); // Spinner tick rate
+    pb.enable_steady_tick(Duration::from_millis(100));
+
+    let mut extracted_count = 0;
+
+    loop {
+        let current_filename_display; // Declare here to make it available after the scope
+
+        let next_archive_state = {
+            match archive.read_header() {
+                Ok(Some(open_archive_with_entry)) => {
+                    let entry = open_archive_with_entry.entry();
+                    let entry_path = output.join(&entry.filename);
+                    current_filename_display = entry.filename.display().to_string(); // Assign here
+
+                    if entry.is_directory() {
+                        fs::create_dir_all(&entry_path)?;
+                        open_archive_with_entry.skip()
+                            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to skip RAR directory entry: {}", e)))?
+                    } else {
+                        if let Some(parent) = entry_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
+                        open_archive_with_entry.extract_to(&entry_path)
+                            .map_err(|e| {
+                                // Now current_filename_display is an owned String, no borrow issue
+                                io::Error::new(io::ErrorKind::Other, format!("Failed to extract RAR file '{}': {}", current_filename_display, e))
+                            })?
+                    }
+                }
+                Ok(None) => break,
+                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!("Error reading RAR header: {}", e))),
+            }
+        };
+
+        archive = next_archive_state;
+        extracted_count += 1;
+        pb.set_message(format!("Extracting: {}", current_filename_display)); // Use the captured string
+        pb.inc(1);
+    }
+
+    pb.finish_with_message(format!("RAR decompression done. Extracted {} files/directories.", extracted_count));
+    Ok(())
+}
+
+
+fn decompress_tar_plain<R: Read>(reader: R, output: &PathBuf) -> io::Result<()> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}")
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
+    );
+    pb.enable_steady_tick(Duration::from_millis(100));
     let mut archive = Archive::new(reader);
     for entry in archive.entries()? {
         let mut file = entry?;
@@ -244,7 +285,7 @@ fn decompress_tar_plain<R: Read>(reader: R, output: &PathBuf) -> io::Result<()> 
             let mut outfile = File::create(&outpath)?;
             io::copy(&mut file, &mut outfile)?;
         }
-        pb.inc(1); // Increment for each entry processed
+        pb.inc(1);
     }
     pb.finish_with_message("Decompression done.");
     Ok(())
