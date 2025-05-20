@@ -1,19 +1,25 @@
 [package]
 name = "sharky"
-version = "0.0.2"
-edition = "2024" # J'ai mis 2021, car 2024 n'est pas encore officiel, mais 2021 est la plus courante après 2018. Si vous utilisez une version très récente de Rust, 2024 pourrait fonctionner.
-
+version = "0.1.2"
+edition = "2024" 
 
 [build-dependencies]
 winres = "0.1"
 
-
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.17"
-lz4_flex = { version = "0.11", features = ["frame"] } # Keep lz4_flex
 tar = "0.4"
 walkdir = "2"
-zstd = "0.13.0" # Keep zstd
-xz2 = "0.1.6" # Add xz2 back
-flate2 = "1.0" # Keep flate2 if you might switch back or compare, otherwise remove
+zstd = "0.13.3" # Keep zstd for multi-threading
+xz2 = "0.1.7" # Keep xz2 as requested (single-threaded XZ)
+flate2 = "1.0" # <--- REMOVED if not used
+bzip2 = "0.5.2"
+zip = "3.0.0"
+
+
+[profile.release]
+# Optimisations pour un meilleur usage CPU
+opt-level = "z"
+lto = true
+codegen-units = 1
