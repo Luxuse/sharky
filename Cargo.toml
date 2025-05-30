@@ -1,25 +1,42 @@
 [package]
 name = "sharky"
-version = "0.3.6"
+version = "1.5.6"
 edition = "2024" 
 
 [build-dependencies]
 winres = "0.1"
 
+
+
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+# Interface en ligne de commande
+clap = { version = "4.5.39", features = ["derive"] }
+
+# Barres de progression
 indicatif = "0.17"
+
+# Parcours de fichiers
+walkdir = "2.3"
+
+# Formats de compression/décompression
 tar = "0.4"
-walkdir = "2"
-zstd = "0.13.3" # Keep zstd for multi-threading
-xz2 = "0.1.7" # Keep xz2 as requested (single-threaded XZ)
-flate2 = "1.0" # <--- REMOVED if not used
-bzip2 = "0.5.2"
-zip = "3.0.0"
-unrar= "0.5.8" # Example, replace with an actual crate if found
+flate2 = "1.0"    # gzip
+bzip2 = "0.5.2"     # bzip2
+xz2 = "0.1"       # xz/lzma
+zstd = "0.13"     # zstandard
+zip = "3.0.0"       # zip
+unrar = "0.5.8"     # rar
+sevenz-rust = "0.6.1"  # 7zip
+lzma-rs = "0.3"   # lzma standalone
+brotli = "8.0.1"    # brotli
+lz4_flex = "0.11" # lz4
+
+# Optionnel - pour d'autres formats
+# cab = "0.4"     # Cabinet files (décommentez si nécessaire)
 
 [profile.release]
-# Optimisations pour un meilleur usage CPU
-opt-level = "z"
+opt-level = 3
 lto = true
 codegen-units = 1
+panic = "abort"
+strip = true
